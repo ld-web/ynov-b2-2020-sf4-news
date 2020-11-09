@@ -18,9 +18,10 @@ Par exemple, si on souhaite utiliser [`PSR-4`](https://www.php-fig.org/psr/psr-4
 
 > composer.json
 
+On vient fixer ici le fait que le namespace "App" correspond au dossier "src/" de notre application.
+
 ```json
 {
-  /* On vient fixer ici le fait que le namespace "App" correspond au dossier "src/" de notre application */
   "autoload": {
     "psr-4": {
       "App\\": "src/"
