@@ -1,0 +1,22 @@
+{% extends 'base.html.twig' %}
+
+{% block stylesheets %}
+{{ parent() }}
+<link rel="stylesheet" href="https://pro.fontawesome.com/releases/v5.10.0/css/all.css" integrity="sha384-AYmEC3Yw5cVb3ZcuHtOA93w35dYTsvhLPVnYs9eStHfGJvOvKxVfELGroGkvsg+p" crossorigin="anonymous"/>
+{% endblock %}
+
+{% block title %}
+  {{ parent() }} - Bienvenue
+{% endblock %}
+
+{% block body %}
+<div class="example-wrapper">
+    <h1>Les dernières news</h1>
+
+    This friendly message is coming from:
+    <ul>
+        <li>Your controller at <code><a href="{{ 'D:/Documents/Ynov/2020-2021/B2/Symfony/sf4-news/src/Controller/IndexController.php'|file_link(0) }}">src/Controller/IndexController.php</a></code></li>
+        <li>Your template at <code><a href="{{ 'D:/Documents/Ynov/2020-2021/B2/Symfony/sf4-news/templates/index/index.html.twig'|file_link(0) }}">templates/index/index.html.twig</a></code></li>
+    </ul>
+</div>
+{% endblock %}

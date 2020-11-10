@@ -1,0 +1,38 @@
+<?php
+
+namespace App\Controller;
+
+use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
+use Symfony\Component\HttpFoundation\Response;
+use Symfony\Component\Routing\Annotation\Route;
+
+class IndexController extends AbstractController
+{
+  /**
+   * @Route("/", name="index")
+   */
+  public function index(): Response
+  {
+    return $this->render('index/index.html.twig', [
+      'controller_name' => 'IndexController',
+    ]);
+  }
+
+  /**
+   * @Route("/presentation", name="presentation")
+   */
+  public function presentation(): Response
+  {
+    return $this->render('index/presentation.html.twig');
+  }
+
+  /**
+   * @Route("/promo", name="promo")
+   */
+  public function promo(): Response
+  {
+    return $this->render('index/promo.html.twig', [
+      'mobile_app_name' => 'SuperNewsApp'
+    ]);
+  }
+}
