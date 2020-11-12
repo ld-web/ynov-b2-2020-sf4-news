@@ -404,3 +404,129 @@ On installe la dépendance de développement suivante : `orm-fixtures` (il s'agi
 La recette exécutée lors de l'installation a créé un fichier `src/DataFixtures/AppFixtures.php`.
 
 C'est dans ce fichier qu'on va créer nos objets et les enregistrer en base de données.
+
+Notre fichier de fixtures, à la base, ressemble à quelque chose comme ça :
+
+```php
+<?php
+
+namespace App\DataFixtures;
+
+use Doctrine\Bundle\FixturesBundle\Fixture;
+use Doctrine\Persistence\ObjectManager;
+
+class AppFixtures extends Fixture
+{
+  public function load(ObjectManager $manager)
+  {
+    //...
+
+    $manager->flush();
+  }
+}
+```
+
+Dans la méthode `load` de notre classe, on va donc vouloir instancier toutes les entités qu'on souhaite enregistrer en base de données.
+
+Par exemple :
+
+```php
+<?php
+//...
+public function load(ObjectManager $manager)
+{
+  $article = new Article();
+  $article
+    ->setTitle('Mon titre')
+    ->setSubtitle('Mon sous-titre')
+    ->setCover('mon-image.jpg')
+    ->setContent('Mon contenu super long ^^');
+  $manager->persist($article);
+
+  $manager->flush();
+}
+//...
+```
+
+On peut ensuite générer notre base de tests avec la commande suivante : `php bin/console doctrine:fixtures:load`
+
+### La persistance des entités
+
+Dans l'extrait de code ci-dessus, reprenons les différentes étapes empruntées afin de pouvoir sauvegarder une entité en base de données :
+
+- On instancie un nouvel objet de type `Article`
+- On utilise l'interface fluide pour assigner des valeurs à ses différents attributs, via les setters
+- On **persiste** l'entité
+- On `flush` les changements effectués pour qu'ils soient exécutés en base de données
+
+Lorsqu'on va vouloir créer un nouvel enregistrement en base de données, on va devoir passer par ces étapes. Et particulièrement l'étape de **persistance**.
+
+> L'étape de persistance, c'est-à-dire l'appel à la méthode `persist` de votre gestionnaire d'entités, est indispensable. Il permet tout simplement, après la création d'un objet, de **dire à votre gestionnaire que vous souhaitez qu'il gère cette entité**. Vu qu'elle n'existe pas encore (on vient de la créer manuellement, dans le code, on ne l'a pas récupérée d'une source de données existante), elle sera donc persistée, c'est-à-dire créée en base de données, lorsque vous exécuterez la méthode `flush` du gestionnaire
+
+---
+
+> L'appel à la méthode `flush` permet de **pousser** vers la base de données tous les changements que vous avez demandés à votre gestionnaire d'entités. Pour notre exemple, il s'agit, après avoir demandé à notre gestionnaire de gérer l'entité, de l'insérer de manière concrète dans la base de données, donc d'exécuter le code SQL nécessaire à son insertion. Ceci nous permet de pouvoir demander plusieurs opérations à notre gestionnaire (insertion, modification, suppression), puis d'effectuer un seul appel à `flush` pour regrouper toutes les requêtes. Ce serait trop lourd si on devait exécuter une requête à chaque fois qu'on demandait quelque chose au gestionnaire
+
+Ainsi, nous pouvons donc créer plusieurs articles, les persister, puis demander à Doctrine de les insérer :
+
+```php
+<?php
+//...
+public function load(ObjectManager $manager)
+{
+  for ($i = 0; $i < 25; $i++) {
+    $article = new Article();
+    $article
+      ->setTitle('Mon titre')
+      ->setSubtitle('Mon sous-titre')
+      ->setCover('mon-image.jpg')
+      ->setContent('Mon contenu super long ^^');
+    $manager->persist($article);
+  }
+
+  $manager->flush();
+}
+//...
+```
+
+### Générer des données aléatoires
+
+Nous pouvons générer avec succès 25 articles, à l'heure actuelle.
+
+Mais le souci principal est qu'ils ont un contenu absolument **identique**.
+
+Il serait plus utile de disposer de données plus _réalistes_.
+
+Pour ce faire, nous allons ajouter un package aux dépendances de développement de notre application : [`Faker`](https://github.com/fzaninotto/Faker) :
+
+```bash
+composer require fzaninotto/faker --dev
+```
+
+Nous pouvons ensuite suivre la [documentation](https://github.com/fzaninotto/Faker#table-of-contents), qui paraît suffisamment claire, afin de disposer d'un objet capable de nous fournir des données aléatoires.
+
+On se trouve donc avec une méthode de chargement de nos fixtures ressemblant à ça :
+
+```php
+<?php
+//...
+use Faker;
+//...
+public function load(ObjectManager $manager)
+{
+  $faker = Faker\Factory::create();
+
+  for ($i = 0; $i < 25; $i++) {
+    $article = new Article();
+    $article
+      ->setTitle($faker->sentence(7))
+      ->setSubtitle($faker->text(70))
+      ->setCover($faker->imageUrl())
+      ->setContent($faker->paragraph(24));
+    $manager->persist($article);
+  }
+
+  $manager->flush();
+}
+//...
+```
