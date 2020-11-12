@@ -5,20 +5,24 @@ namespace App\DataFixtures;
 use App\Entity\Article;
 use Doctrine\Bundle\FixturesBundle\Fixture;
 use Doctrine\Persistence\ObjectManager;
+use Faker;
 
 class AppFixtures extends Fixture
 {
   public function load(ObjectManager $manager)
   {
-    $article = new Article();
-    $article
-      ->setTitle('Mon article de test')
-      ->setSubtitle('Mon sous-titre d\'article')
-      ->setCover('img.jpg')
-      ->setContent('Blablabla')
-    ;
+    $faker = Faker\Factory::create();
 
-    $manager->persist($article);
+    for ($i = 0; $i < 25; $i++) {
+      $article = new Article();
+      $article
+        ->setTitle($faker->sentence(7))
+        ->setSubtitle($faker->text(70))
+        ->setCover($faker->imageUrl())
+        ->setContent($faker->paragraph(24));
+      $manager->persist($article);
+    }
+
     $manager->flush();
   }
 }
