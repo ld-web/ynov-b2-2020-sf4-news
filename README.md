@@ -666,7 +666,7 @@ Pour résumer, nous pouvons donc dire que `ArticleRepository` est une **dépenda
 
 Nous venons donc d'**injecter cette dépendance** dans notre contrôleur.
 
-![MVC avec Container](docs/MVC_Service_COntainer.png "MVC avec Container")
+![MVC avec Container](docs/MVC_Service_Container.png "MVC avec Container")
 
 ### Afficher les éléments d'une collection dans une vue Twig
 
