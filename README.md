@@ -158,7 +158,7 @@ On trouvera des dépendances dans 2 catégories : `require` et `require-dev`.
 
 Dans `require-dev`, on placera ce qu'on va appeler **des dépendances de développement**. Cela va concerner essentiellement les tests unitaires, ou utilitaires que l'on peut mettre en oeuvre lors de la phase de développement d'une application.
 
-> En production par exemple, on ne voudra pas des des dépendances de développement. On pourra ainsi demander à Composer de ne pas les intégrer au projet : `composer install --no-dev`
+> En production par exemple, on ne voudra pas des dépendances de développement. On pourra ainsi demander à Composer de ne pas les intégrer au projet : `composer install --no-dev`
 
 #### `composer.lock`
 
@@ -530,3 +530,167 @@ public function load(ObjectManager $manager)
 }
 //...
 ```
+
+### Afficher des données
+
+Nous disposons à présent de données aléatoires générées automatiquement dans notre base de données.
+
+Nous allons donc pouvoir les afficher à l'écran !
+
+Pour les afficher, il faut donc que notre **vue** dispose d'une collection d'articles à afficher.
+
+> Dans le pattern MVC, le contrôleur est chargé d'agir en tant que "_glue_" entre le modèle et la vue. Dans Symfony, il va donc se charger de récupérer les articles auprès d'une couche de service (les repositories), puis transmettre le résultat obtenu à la vue
+
+#### Les repositories
+
+Dans Symfony, les repositories agissent comme une **couche de service**.
+
+Un service, de manière générale dans une application, fournit des fonctionnalités que nous pouvons consommer depuis un autre endroit de l'application. Un service sera généralement représenté par une classe, et les fonctionnalités fournies, par des méthodes.
+
+Dans notre cas, **un repository peut donc être qualifié de service applicatif nous permettant de discuter avec notre base de données, à propos d'un sujet particulier (une entité)**.
+
+On retrouve cette "sectorisation" sur une entité dans le constructeur, par exemple :
+
+```php
+// src/Repository/ArticleRepository.php
+//...
+public function __construct(ManagerRegistry $registry)
+{
+    parent::__construct($registry, Article::class);
+}
+//...
+```
+
+Si on explore un peu plus cette classe, on remarque qu'elle hérite d'une classe `ServiceEntityRepository`, qui elle-même hérite d'une classe `EntityRepository`. Ces 2 derniers fichiers appartiennent au package Doctrine, nous ne devons donc **absolument pas** tenter de les modifier (ils se trouvent quelque part dans les vendors).
+
+Une rapide revue de la classe `EntityRepository` nous indique donc que notre `ArticleRepository`, par exemple, hérite de méthodes publiques telles que `find`, `findAll`, `findBy`, etc...
+
+> Ce sont ces méthodes que nous voulons utiliser dans notre contrôleur afin de pouvoir récupérer nos articles sans écrire nous-mêmes le SQL. C'est Doctrine qui va se charger de ça pour nous
+
+### Introduction à l'injection de dépendances
+
+La problématique principale réside donc dans la nécessité pour le contrôleur de disposer d'une instance de notre `ArticleRepository`, afin d'exploiter les méthodes offertes par ce service.
+
+![MVC avec un repository en tant que service](docs/MVC_Service.png "MVC avec un repository en tant que service")
+
+Le premier moyen que nous pourrions utiliser est l'instanciation d'un repository dans notre contrôleur :
+
+```php
+//...
+class IndexController extends AbstractController
+{
+  /**
+   * @Route("/", name="index")
+   */
+  public function index(): Response
+  {
+    $articleRepository = new ArticleRepository();
+  }
+  //...
+}
+```
+
+Le souci est que **la signature du constructeur attend un paramètre** !
+Nous devrions donc nous poser une seconde problématique pour instancier ce paramètre. Mais celui-ci est de type `ManagerRegistry`, qui est une interface ! Nous ne pouvons pas instancier une interface...
+
+Il existe un moyen plus simple pour disposer d'une instance de notre `ArticleRepository` : nous allons **l'injecter** directement dans notre contrôleur. Pour gérer l'injection de l'instance, nous allons simplement nous reposer sur le **container** de Symfony.
+
+#### Le container
+
+Le container Symfony est un ensemble de classes compilées dans le dossier `var/cache` de notre application. Il est compilé automatiquement par Symfony.
+
+Il va contenir diverses informations sur notre application, et notamment la liste des services de notre application.
+
+Pour les découvrir, il va explorer notre dossier `src/` à la recherche des classes utilisables en tant que services.
+
+Le fait qu'il aille chercher dans le dossier `src/` n'est pas magique, et est issu de la configuration par défaut de Symfony :
+
+```yaml
+# config/services.yaml
+
+#...
+
+services:
+    # ...
+
+    # makes classes in src/ available to be used as services
+    # this creates a service per class whose id is the fully-qualified class name
+    App\:
+        resource: '../src/'
+        exclude:
+            - '../src/DependencyInjection/'
+            - '../src/Entity/'
+            - '../src/Kernel.php'
+            - '../src/Tests/'
+
+    # controllers are imported separately to make sure services can be injected
+    # as action arguments even if you don't extend any base controller class
+    App\Controller\:
+        resource: '../src/Controller/'
+        tags: ['controller.service_arguments']
+
+#...
+```
+
+> Attention au format des fichiers Yaml : il s'agit d'un format permettant de déclarer des éléments de configuration. Ces éléments peuvent être regroupés en **sections**. Dans une section seront regroupés tous les éléments **avec un niveau d'indentation supplémentaire**. **Une erreur dans la gestion de vos niveaux d'indentation peut tout simplement rendre votre fichier invalide** !
+
+Ici, dans la section `services`, le container va pouvoir aller explorer l'ensemble des classes présentes dans `src/`, à l'exception de certains fichiers et dossiers que nous ne voulons pas enregistrer dans le container en tant que services (directive `exclude`).
+
+Par ailleurs, la dernière section concernant les contrôleurs va nous permettre d'**injecter directement un service en tant qu'argument du contrôleur**.
+
+Ainsi, nous pouvons en déduire que notre container connaît l'ensemble de nos repositories en tant que services applicatifs, utilisables là où on en a besoin.
+
+Par exemple, si je souhaite communiquer avec ma base de données à propos d'articles dans mon contrôleur, je peux donc injecter un argument de type `ArticleRepository` afin de consommer les méthodes que ce service nous offre :
+
+```php
+class IndexController extends AbstractController
+{
+  //...
+  public function index(ArticleRepository $articleRepository): Response
+  {
+    // 1 - Je récupère les articles en discutant avec ma couche de service
+    $articles = $articleRepository->findAll();
+
+    // 2 - Je transmets les articles à la vue que je souhaite afficher
+    return $this->render('index/index.html.twig', [
+      'articles' => $articles,
+    ]);
+  }
+  //...
+}
+```
+
+> Cette méthode s'appelle le `type-hinting` : il s'agit de spécifier le type attendu pour un argument de méthode. Ensuite, le container reconnaît ce type, vu qu'il l'a déjà découvert en explorant nos fichiers dans `src/`, et est donc capable d'injecter le service correspondant à ce type, s'il le connaît
+
+Pour résumer, nous pouvons donc dire que `ArticleRepository` est une **dépendance** de notre contrôleur, puisque ce dernier a besoin de ce service pour pouvoir fonctionner correctement, c'est-à-dire pour pouvoir récupérer les articles qu'il va transmettre à la vue.
+
+Nous venons donc d'**injecter cette dépendance** dans notre contrôleur.
+
+![MVC avec Container](docs/MVC_Service_COntainer.png "MVC avec Container")
+
+### Afficher les éléments d'une collection dans une vue Twig
+
+Notre contrôleur dispose d'un moyen de récupérer la collection d'articles, et peut la transmettre à la vue.
+
+Dans notre template Twig correspondant, nous allons itérer sur la collection afin d'afficher chaque élément. Pour ce faire, nous allons utiliser une boucle [for](https://twig.symfony.com/doc/3.x/tags/for.html) :
+
+```twig
+<ul class="list-group">
+  {% for article in articles %}
+    <li class="list-group-item">
+      <p>{{ article.title }}</p>
+      <img src="{{ article.cover }}" alt="{{ article.subtitle }}" />
+    </li>
+  {% endfor %}
+</ul>
+```
+
+> Attention, la syntaxe d'une boucle `for` avec Twig ressemble à celle d'un `foreach` en PHP, mais la collection sur laquelle itérer et la variable d'itération à utiliser sont dans le sens inverse ! Sans compter évidemment que le mot `as` change en `in` avec Twig
+
+On remarque que pour afficher un champ d'un objet `Article`, Twig nous permet d'accéder à l'attribut d'un objet à l'aide d'un point `.`
+
+En réalité, il faut bien avoir en tête le mécanisme mis en oeuvre par Twig pour arriver à afficher l'attribut correspondant. En effet, dans notre exemple, l'attribut `title` est marqué comme `private` par exemple. Comment Twig peut-il donc deviner comment accéder à sa valeur ?
+
+La réponse se trouve derrière [ce lien](https://twig.symfony.com/doc/3.x/templates.html#variables) : Twig dispose de plusieurs possibilités à explorer sur une variable lorsqu'on tente d'accéder à un attribut de celle-ci.
+
+Dans notre cas, il s'arrête sur le cas "if foo is an object, check that getBar is a valid method", où `foo` est notre variable `article` et `getBar` notre méthode `getTitle`.
