@@ -10,7 +10,7 @@
 {% endblock %}
 
 {% block body %}
-<div class="example-wrapper">
+<div class="container">
     <h1>Les dernières news</h1>
 
     This friendly message is coming from:
@@ -19,14 +19,17 @@
         <li>Your template at <code><a href="{{ 'D:/Documents/Ynov/2020-2021/B2/Symfony/sf4-news/templates/index/index.html.twig'|file_link(0) }}">templates/index/index.html.twig</a></code></li>
     </ul>
 
-    <ul class="list-group">
+    <div class="d-flex flex-wrap justify-content-around">
       {% for article in articles %}
-        {{ dump(article) }}
-        <li class="list-group-item">
-          <p>{{ article.title }}</p>
-          <img src={{ article.cover }} alt={{ article.subtitle }} />
-        </li>
+        <div class="card mb-5" style="width: 18rem;">
+          <img src="{{ article.cover }}" class="card-img-top" alt="{{ article.subtitle }}">
+          <div class="card-body">
+            <h5 class="card-title">{{ article.title }}</h5>
+            <p class="card-text">{{ article.subtitle }}</p>
+            <a href="#" class="btn btn-primary">Lire</a>
+          </div>
+        </div>
       {% endfor %}
-    </ul>
+    </div>
 </div>
 {% endblock %}
