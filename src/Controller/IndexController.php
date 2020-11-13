@@ -2,6 +2,7 @@
 
 namespace App\Controller;
 
+use App\Entity\Article;
 use App\Repository\ArticleRepository;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\Response;
@@ -15,7 +16,7 @@ class IndexController extends AbstractController
   public function index(ArticleRepository $articleRepository): Response
   {
     // 1 - Je récupère les articles en discutant avec ma couche de service
-    $articles = $articleRepository->findAll();
+    $articles = $articleRepository->findTop(Article::NB_HOME);
     
     // 2 - Je transmets les articles à la vue que je souhaite afficher
     return $this->render('index/index.html.twig', [
