@@ -24,7 +24,7 @@ class IndexController extends AbstractController
   }
 
   /**
-   * @Route("/presentation", name="presentation")
+   * @Route("/qui-sommes-nous", name="presentation")
    */
   public function presentation(): Response
   {
