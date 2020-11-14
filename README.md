@@ -378,7 +378,7 @@ class Category
    * @ORM\ManyToMany(targetEntity=Article::class, inversedBy="categories")
    */
   private $articles;
-  
+
   //...
 
   /**
@@ -611,24 +611,23 @@ Le fait qu'il aille chercher dans le dossier `src/` n'est pas magique, et est is
 #...
 
 services:
-    # ...
+  # ...
 
-    # makes classes in src/ available to be used as services
-    # this creates a service per class whose id is the fully-qualified class name
-    App\:
-        resource: '../src/'
-        exclude:
-            - '../src/DependencyInjection/'
-            - '../src/Entity/'
-            - '../src/Kernel.php'
-            - '../src/Tests/'
+  # makes classes in src/ available to be used as services
+  # this creates a service per class whose id is the fully-qualified class name
+  App\:
+    resource: "../src/"
+    exclude:
+      - "../src/DependencyInjection/"
+      - "../src/Entity/"
+      - "../src/Kernel.php"
+      - "../src/Tests/"
 
-    # controllers are imported separately to make sure services can be injected
-    # as action arguments even if you don't extend any base controller class
-    App\Controller\:
-        resource: '../src/Controller/'
-        tags: ['controller.service_arguments']
-
+  # controllers are imported separately to make sure services can be injected
+  # as action arguments even if you don't extend any base controller class
+  App\Controller\:
+    resource: "../src/Controller/"
+    tags: ["controller.service_arguments"]
 #...
 ```
 
@@ -694,3 +693,238 @@ En réalité, il faut bien avoir en tête le mécanisme mis en oeuvre par Twig p
 La réponse se trouve derrière [ce lien](https://twig.symfony.com/doc/3.x/templates.html#variables) : Twig dispose de plusieurs possibilités à explorer sur une variable lorsqu'on tente d'accéder à un attribut de celle-ci.
 
 Dans notre cas, il s'arrête sur le cas "if foo is an object, check that getBar is a valid method", où `foo` est notre variable `article` et `getBar` notre méthode `getTitle`.
+
+### Afficher des CSS et des images statiques
+
+Le composant `Asset` de Symfony peut nous permettre d'afficher nos ressources statiques.
+
+En installant le `website-skeleton`, nous avons installé ce composant.
+
+Il nous fournit une méthode d'extension Twig : [`asset`](https://symfony.com/doc/current/reference/twig_reference.html#asset).
+
+Cette méthode permet d'aller chercher directement le chemin de ressources statiques.
+
+Par exemple, pour une feuille de styles CSS :
+
+```twig
+<link rel="stylesheet" href="{{ asset('css/styles.css') }}" />
+```
+
+Le fichier sera directement récupéré dans le dossier `public/`.
+
+Par ailleurs, il est ensuite possible de configurer une stratégie de versioning de nos assets par exemple, pour l'invalidation du cache utilisateur. L'utilisation de la méthode `asset` délègue le chargement de nos ressources au composant.
+
+### Récupérer et afficher un élément de la base de données
+
+Si nous souhaitons réaliser la page d'un article par exemple, la première problématique va être la suivante : comment récupérer le bon article ?
+
+#### Première piste - Injecter la requête dans le contrôleur
+
+Symfony possède une classe `Request` que nous pouvons type-hinter dans n'importe quel contrôleur. Une fois que nous disposons d'une instance de la classe `Request`, nous pouvons accéder à diverses informations concernant la requête effectuée.
+
+Par exemple, ici, nous aimerions récupérer un paramètre GET `id` :
+
+```php
+/**
+  * @Route("/article", name="article")
+  */
+public function index(Request $request): Response
+{
+  return $this->render('article/index.html.twig', [
+    'controller_name' => 'ArticleController',
+    'id' => $request->query->getInt('id')
+  ]);
+}
+```
+
+On utilise l'attribut `query`, qui contient tous les paramètres GET de la requête.
+
+On pourrait donc, une fois qu'on a récupéré l'ID de l'article qu'on souhaite afficher, injecter notre `ArticleRepository` dans notre contrôleur afin de récupérer l'entité en question :
+
+```php
+/**
+  * @Route("/article", name="article")
+  */
+public function index(Request $request, ArticleRepository $repo): Response
+{
+  $id = $request->query->getInt('id');
+  $article = $repo->find($id);
+
+  return $this->render('article/index.html.twig', [
+    'controller_name' => 'ArticleController',
+    'article' => $article
+  ]);
+}
+```
+
+Bien que cette solution soit valide techniquement, elle ne sera pas convenable. En effet, nous aimerions par exemple disposer d'URL mieux formées, type `/article/56` au lieu de `/article?id=56`.
+
+Pour ce faire, nous allons commencer par modifier l'URL de notre route, dans l'annotation, pour lui ajouter un **paramètre d'URL** :
+
+```php
+/**
+  * @Route("/article/{id}", name="article")
+  */
+public function index(ArticleRepository $repo, int $id = 0): Response
+{
+  $article = $repo->find($id);
+
+  return $this->render('article/index.html.twig', [
+    'controller_name' => 'ArticleController',
+    'article' => $article
+  ]);
+}
+```
+
+Ici, nous avons ajouté dans l'annotation de route un paramètre d'URL : id.
+
+Mais nous voyons que tout paramètre d'URL peut être mappé en tant que paramètre de notre contrôleur. Nous avons également ajouté un paramètre à notre méthode, de type `int`.
+
+Nous n'avons donc plus besoin de l'objet `Request` pour récupérer notre ID passé en paramètre d'URL, et nous pouvons directement utiliser notre repository pour récupérer l'article.
+
+Ceci dit, Symfony nous donne la possibilité de faire encore plus simple et plus efficace.
+
+#### Solution - le ParamConverter
+
+En réalité, avec Symfony, il est possible de déclarer notre route, y intégrer un paramètre d'URL comme `id`, puis de **type-hinter** directement le type de l'entité attendue pour que l'objet correspondant soit injecté dans notre contrôleur :
+
+```php
+/**
+ * @Route("/blog/{id}", name="article")
+ */
+public function index(Article $article): Response
+{
+  return $this->render('article/index.html.twig', [
+    'controller_name' => 'ArticleController',
+    'article' => $article
+  ]);
+}
+```
+
+> Nous avons également changé le format de la route de `/article` à `/blog`
+
+Ici, que se passe-t-il concrètement ?
+
+- Symfony est capable, avec le routeur, d'identifier le paramètre d'URL `id`
+- A la lecture du type-hint `Article`, il comprend que nous souhaitons récupérer un élément de la base de données
+- Il exécute donc le ParamConverter de Doctrine, qui permet de récupérer un élément de la base de données à partir d'un paramètre d'URL
+- Notre paramètre d'URL s'appelle `id` : Doctrine va donc chercher un `Article` qui a cet `id` (note : on aurait également pu passer un paramètre dont le nom correspond à un autre champ de `Article`, c'est comme ça que ça fonctionne)
+- Si un enregistrement est trouvé, alors il est injecté dans le contrôleur
+- Sinon, une erreur 404 est générée
+
+Nous avons donc considérablement réduit la quantité de code nécessaire pour récupérer notre article, rendu notre contrôleur plus clair, notre URL plus lisible, et nous générons à présent une erreur 404 lorsque l'enregistrement n'est pas trouvé, ce qui est plus rigoureux que le comportement précédent qui pouvait transmettre un article `null` à notre template.
+
+> Le ParamConverter permet de récupérer un élément automatiquement, selon une certaine logique, à partir d'un paramètre d'URL, et de l'injecter automatiquement dans le contrôleur
+
+### Séparation des templates et inclusion
+
+Revenons à nos templates Twig.
+
+Au lieu d'écrire tout le contenu dans un seul template, nous pouvons séparer des bouts de templates et les importer (inclure) dans d'autres templates.
+
+Exemple pour notre liste d'articles en page d'accueil. Nous pouvons tout à fait séparer le code qui génère la "card" Bootstrap :
+
+```twig
+{# templates/index/article_list_item.html.twig #}
+<div class="card mb-5" style="width: 18rem;">
+  <img src="{{ article.cover }}" class="card-img-top" alt="{{ article.subtitle }}">
+  <div class="card-body">
+    <h5 class="card-title">{{ article.title }}</h5>
+    <p class="card-text">{{ article.subtitle }}</p>
+    <a href="{{ path('article', { id: article.id }) }}" class="btn btn-primary">Lire</a>
+  </div>
+</div>
+```
+
+Et ensuite, l'inclure pour chaque article qu'on souhaite afficher, dans la page d'accueil. Pour ce faire, on va utiliser la méthode `include` de Twig :
+
+```twig
+{# templates/index/index.html.twig #}
+{# ... #}
+<div class="d-flex flex-wrap justify-content-around">
+  {% for article in articles %}
+    {{ include('index/article_list_item.html.twig', { article: article }) }}
+  {% endfor %}
+</div>
+{# ... #}
+```
+
+> Attention au chemin vers le template, il est toujours relatif à votre dossier racine de templates, défini dans la configuration du package Twig (ici `templates/`)
+
+Nous injectons dans le template inclus la variable `article` qui y sera consommée.
+
+Nous pouvons donc réaliser notre barre de navigation de la même façon.
+
+### Introduction au QueryBuilder
+
+Pour l'instant, notre page d'accueil récupère et affiche tous les articles.
+
+Mais j'aimerais qu'elle en affiche uniquement 12.
+
+Je pourrais, si je le souhaitais, utiliser la méthode `findBy` de mon repository, mais je devrais dans ce cas ignorer les 2 premiers paramètres : je n'ai aucun critère à passer pour le moment, ni d'ordre à appliquer à la collection trouvée.
+
+Nous allons donc pouvoir définir une méthode dans notre couche de service, notre `ArticleRepository`.
+
+Notre repository hérite d'une fonction `createQueryBuilder`. C'est cette méthode qui nous permettra de récupérer un constructeur de requêtes.
+
+A partir de ce constructeur de requêtes, nous allons pouvoir reproduire des éléments de syntaxe SQL et indiquer quelle requête nous voulons faire, et comment nous souhaitons la personnaliser.
+
+#### 1ère version de notre méthode
+
+```php
+public function findTopTwelve()
+{
+  $qb = $this->createQueryBuilder('a')
+    ->setMaxResults(12);
+
+  return $qb->getQuery()->getResult();
+}
+```
+
+Nous pouvons ensuite consommer cette méthode dans notre contrôleur :
+
+```php
+$articles = $articleRepository->findTopTwelve();
+```
+
+Un problème se pose dans l'écriture de cette méthode : que se passe-t-il si, à l'avenir, je ne souhaite plus afficher 12 articles mais 9, ou bien 15 ?
+
+Ma méthode est trop spécifique et conçue de manière incorrecte. Il faut qu'elle soit plus évolutive.
+
+Pour ce faire, je vais la renommer `findTop` et définit qu'elle devra prendre un paramètre `number` en entrée, de type `int`.
+
+```php
+/**
+ * Finds top number of articles
+ *
+ * @param integer $number
+ * @return Article[]
+ */
+public function findTop(int $number)
+{
+  $qb = $this->createQueryBuilder('a')
+    ->setMaxResults($number);
+
+  return $qb->getQuery()->getResult();
+}
+```
+
+Ensuite, je vais externaliser le nombre d'articles que je souhaite afficher en page d'accueil dans une **constante** de la classe `Article` :
+
+```php
+//...
+
+class Article
+{
+  public const NB_HOME = 12;
+  //...
+}
+```
+
+Puis, dans mon contrôleur, je vais à présent consommer ma méthode, en m'appuyant sur l'information de nombre fournie par ma classe `Article` :
+
+```php
+$articles = $articleRepository->findTop(Article::NB_HOME);
+```
+
+Mon code est ainsi mieux **séparé** et plus **lisible**. L'utilisation de la constante, nommée, me permet d'identifier à quoi ce nombre est relatif. Ici, il s'agit du nombre d'articles qu'on souhaite afficher sur la page d'accueil. Mais cela pourrait aussi être le nombre d'articles qu'on souhaite afficher par page, lorsqu'on dispose d'une collection d'articles, par exemple. Quelque chose comme `NB_PER_PAGE`.
