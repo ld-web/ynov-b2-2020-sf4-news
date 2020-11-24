@@ -5,6 +5,7 @@ namespace App\Controller;
 use App\Entity\Contact;
 use App\Form\ContactType;
 use Doctrine\ORM\EntityManagerInterface;
+use Exception;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
@@ -23,8 +24,20 @@ class ContactController extends AbstractController
     $form->handleRequest($request);
 
     if ($form->isSubmitted() && $form->isValid()) {
-      $em->persist($contact);
-      $em->flush();
+      try {
+        $em->persist($contact);
+        $em->flush();
+        
+        $this->addFlash(
+          'success',
+          'Votre demande a bien été enregistrée !'
+        );
+      } catch (Exception $e) {
+        $this->addFlash(
+          'danger',
+          'Une erreur est survenue pendant l\'enregistrement de votre demande'
+        );
+      }
     }
 
     return $this->render('contact/index.html.twig', [
