@@ -58,6 +58,10 @@
     - [Affichage](#affichage-du-formulaire-dans-un-template-twig)
     - [Appliquer un thème](#appliquer-un-thème-au-formulaire)
   - [Les messages flash](#les-messages-flash)
+  - [Utilisateurs](#utilisateurs)
+    - [Authentification](#authentification)
+    - [Contrôle d'accès](#contrôle-d-accès)
+  - [CRUD](#crud)
 
 ## Composer
 
@@ -1326,3 +1330,104 @@ public function index(Request $request, EntityManagerInterface $em): Response
 Plus de détails pour les messages flash [ici](https://symfony.com/doc/current/controller.html#flash-messages).
 
 Plus de détails sur la variable `app` [ici](https://symfony.com/doc/current/templates.html#twig-app-variable).
+
+### Utilisateurs
+
+Pour ajouter des utilisateurs à notre application, rien de plus simple :
+
+```bash
+php bin/console make:user
+```
+
+Cette commande crée une entité spéciale, car elle implémente l'interface `UserInterface`, avec laquelle travaille le `Security component` de Symfony.
+
+D'ailleurs, cette commande met également à jour le fichier de configuration du composant `Security`, en ajoutant notamment un **provider**, un fournisseur d'utilisateurs à notre application :
+
+> Fichier : config/packages/security.yaml
+
+```yaml
+providers:
+  app_user_provider:
+    entity:
+      class: App\Entity\User
+      property: email
+```
+
+Ici, la propriété `email` sera celle utilisée pour identifier un utilisateur de manière unique.
+
+Le fichier de configuration du composant `Security` inscrit également ce fournisseur en tant que fournisseur du **pare-feu principal** :
+
+> Fichier : config/packages/security.yaml
+
+```yaml
+firewalls:
+  main:
+    anonymous: lazy
+    provider: app_user_provider
+```
+
+> Le **provider** est ce qui permettra au composant de sécurité de récupérer l'utilisateur depuis la session PHP, une fois qu'on est authentifié
+
+#### Authentification
+
+Une fois l'entité `User` créée, le fournisseur d'utilisateurs enregistré, il faut encore ajouter un système **d'authentification** dans l'application.
+
+Symfony nous permet également de réaliser ce système de manière extrêment simple. Nous allons créer un "form login" :
+
+```bash
+php bin/console make:auth
+```
+
+Cette commande permet de créer un `Authenticator`, qui va être chargé d'authentifier les utilisateurs dans notre application.
+
+> Il faut donc faire la différence entre un **Authenticator**, qui permet d'identifier l'utilisateur à partir des valeurs fournies (nom d'utilisateur / mot de passe), et un **provider** qui lui entre en scène une fois que l'on est déjà authentifié, pour "rafraîchir" les données de l'utilisateur
+
+Le fichier de configuration du package de sécurité est également mis à jour automatiquement pour référencer l'`Authenticator` :
+
+> Fichier : config/packages/security.yaml
+
+```yaml
+main:
+  anonymous: lazy
+  provider: app_user_provider
+  guard:
+    authenticators:
+      - App\Security\AppAuthenticator
+  logout:
+    path: app_logout
+```
+
+L'`Authenticator` se trouve donc dans le dossier `src/Security/AppAuthenticator.php` dans cet exemple. Tout dépend de comment vous l'avez nommé.
+
+Enfin, on retrouvera dans l'application tous les autres fichiers qui permettent de gérer un login dans l'application :
+
+- src/Controller/SecurityController.php
+- src/Form/CategoryType.php
+- templates/security/login.html.twig
+
+#### Contrôle d'accès
+
+Créer une entité `User` et un système d'authentification ne permet pas de limiter l'accès à certaines sections du site.
+
+Par défaut, nous pouvons toujours naviguer dans l'intégralité du site, sans avoir besoin de s'authentifier.
+
+Pour pouvoir limiter l'accès à certaines sections du site, nous pouvons agir sur la configuration du package `Security`, dans la section `access_control` :
+
+```yaml
+access_control:
+  - { path: ^/admin, roles: ROLE_ADMIN }
+```
+
+On peut renseigner un format d'URL (ici : tout ce qui commence par "/admin"), et indiquer à quel rôle d'utilisateurs cette catégorie d'URL est réservée.
+
+### CRUD
+
+Pour créer un CRUD sur une entité, on peut aussi utiliser la console :
+
+```bash
+php bin/console make:crud
+```
+
+On retrouvera la classe de contrôleur contenant toutes les méthodes nécessaires à la création, l'affichage, l'édition et la suppression d'enregistrements de cette entité, ainsi que les templates d'affichages nécessaires.
+
+Egalement, un formulaire sera créé automatiquement dans le dossier `src/Form` pour pouvoir générer les champs d'édition.
