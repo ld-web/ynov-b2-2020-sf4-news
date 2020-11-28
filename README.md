@@ -60,7 +60,7 @@
   - [Les messages flash](#les-messages-flash)
   - [Utilisateurs](#utilisateurs)
     - [Authentification](#authentification)
-    - [Contrôle d'accès](#contrôle-d-accès)
+    - [Contrôle d'accès](#contrôle-daccès)
   - [CRUD](#crud)
 
 ## Composer
