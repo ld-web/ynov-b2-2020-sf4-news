@@ -13,13 +13,9 @@ use Doctrine\ORM\Mapping as ORM;
 class Article
 {
   public const NB_HOME = 12;
-  
-  /**
-   * @ORM\Id
-   * @ORM\GeneratedValue
-   * @ORM\Column(type="integer")
-   */
-  private $id;
+
+  use IdTrait;
+  use DateCreatedTrait;
 
   /**
    * @ORM\Column(type="string", length=255)
@@ -49,11 +45,6 @@ class Article
   public function __construct()
   {
     $this->categories = new ArrayCollection();
-  }
-
-  public function getId(): ?int
-  {
-    return $this->id;
   }
 
   public function getTitle(): ?string

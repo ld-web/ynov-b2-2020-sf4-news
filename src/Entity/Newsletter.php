@@ -11,33 +11,23 @@ use Symfony\Component\Validator\Constraints as Assert;
  */
 class Newsletter
 {
-    /**
-     * @ORM\Id
-     * @ORM\GeneratedValue
-     * @ORM\Column(type="integer")
-     */
-    private $id;
+  use IdTrait;
+  
+  /**
+   * @ORM\Column(type="string", length=255)
+   * @Assert\Email()
+   */
+  private $email;
 
-    /**
-     * @ORM\Column(type="string", length=255)
-     * @Assert\Email()
-     */
-    private $email;
+  public function getEmail(): ?string
+  {
+    return $this->email;
+  }
 
-    public function getId(): ?int
-    {
-        return $this->id;
-    }
+  public function setEmail(string $email): self
+  {
+    $this->email = $email;
 
-    public function getEmail(): ?string
-    {
-        return $this->email;
-    }
-
-    public function setEmail(string $email): self
-    {
-        $this->email = $email;
-
-        return $this;
-    }
+    return $this;
+  }
 }

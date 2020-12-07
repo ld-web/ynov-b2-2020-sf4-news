@@ -12,83 +12,74 @@ use Doctrine\ORM\Mapping as ORM;
  */
 class Category
 {
-    /**
-     * @ORM\Id
-     * @ORM\GeneratedValue
-     * @ORM\Column(type="integer")
-     */
-    private $id;
+  use IdTrait;
+  use DateCreatedTrait;
 
-    /**
-     * @ORM\Column(type="string", length=255)
-     */
-    private $name;
+  /**
+   * @ORM\Column(type="string", length=255)
+   */
+  private $name;
 
-    /**
-     * @ORM\Column(type="string", length=255, nullable=true)
-     */
-    private $color;
+  /**
+   * @ORM\Column(type="string", length=255, nullable=true)
+   */
+  private $color;
 
-    /**
-     * @ORM\ManyToMany(targetEntity=Article::class, inversedBy="categories")
-     */
-    private $articles;
+  /**
+   * @ORM\ManyToMany(targetEntity=Article::class, inversedBy="categories")
+   */
+  private $articles;
 
-    public function __construct()
-    {
-        $this->articles = new ArrayCollection();
+  public function __construct()
+  {
+    $this->articles = new ArrayCollection();
+  }
+
+  public function getName(): ?string
+  {
+    return $this->name;
+  }
+
+  public function setName(string $name): self
+  {
+    $this->name = $name;
+
+    return $this;
+  }
+
+  public function getColor(): ?string
+  {
+    return $this->color;
+  }
+
+  public function setColor(?string $color): self
+  {
+    $this->color = $color;
+
+    return $this;
+  }
+
+  /**
+   * @return Collection|Article[]
+   */
+  public function getArticles(): Collection
+  {
+    return $this->articles;
+  }
+
+  public function addArticle(Article $article): self
+  {
+    if (!$this->articles->contains($article)) {
+      $this->articles[] = $article;
     }
 
-    public function getId(): ?int
-    {
-        return $this->id;
-    }
+    return $this;
+  }
 
-    public function getName(): ?string
-    {
-        return $this->name;
-    }
+  public function removeArticle(Article $article): self
+  {
+    $this->articles->removeElement($article);
 
-    public function setName(string $name): self
-    {
-        $this->name = $name;
-
-        return $this;
-    }
-
-    public function getColor(): ?string
-    {
-        return $this->color;
-    }
-
-    public function setColor(?string $color): self
-    {
-        $this->color = $color;
-
-        return $this;
-    }
-
-    /**
-     * @return Collection|Article[]
-     */
-    public function getArticles(): Collection
-    {
-        return $this->articles;
-    }
-
-    public function addArticle(Article $article): self
-    {
-        if (!$this->articles->contains($article)) {
-            $this->articles[] = $article;
-        }
-
-        return $this;
-    }
-
-    public function removeArticle(Article $article): self
-    {
-        $this->articles->removeElement($article);
-
-        return $this;
-    }
+    return $this;
+  }
 }
