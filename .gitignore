@@ -20,3 +20,4 @@
 ###< symfony/web-server-bundle ###
 
 /.vscode/
+/public/uploads/

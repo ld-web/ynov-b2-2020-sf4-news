@@ -1,6 +1,10 @@
 <div class="d-flex flex-wrap justify-content-center">
 	<div class="card mb-3" style="width: 50vw;">
-		<img src="{{ article.cover }}​​" class="card-img-top" alt="{{ article.subtitle }}​​">
+    {#
+      On pourrait passer le dossier uploads/ en variable globale Twig
+      https://symfony.com/doc/current/templating/global_variables.html
+    #}
+		<img src="{{ asset('uploads/' ~ article.cover) }}​​" class="card-img-top" alt="{{ article.subtitle }}​​">
       <div class="card-body">
         <h1 class="card-title">{{ article.title }}​​</h1>
         <h3 class="card-title">{{ article.subtitle }}​​</h3>

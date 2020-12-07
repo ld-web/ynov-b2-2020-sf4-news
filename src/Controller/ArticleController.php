@@ -6,6 +6,7 @@ use App\Entity\Article;
 use App\Form\ArticleType;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
+use Symfony\Component\HttpFoundation\File\UploadedFile;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Annotation\Route;
@@ -24,7 +25,7 @@ class ArticleController extends AbstractController
   }
 
   /**
-   * @Route("/blog/article/new", name="article", methods={"GET","POST"})
+   * @Route("/blog/article/new", name="article_new", methods={"GET","POST"})
    */
   public function new(Request $request, EntityManagerInterface $em): Response
   {
@@ -34,6 +35,17 @@ class ArticleController extends AbstractController
     $form->handleRequest($request);
 
     if ($form->isSubmitted() && $form->isValid()) {
+      /** @var UploadedFile */
+      $file = $form->get('coverFile')->getData();
+
+      $filename = md5(uniqid()) . '.' . $file->guessExtension();
+      $file->move(
+        $this->getParameter('upload_dir'),
+        $filename
+      );
+
+      $article->setCover($filename);
+
       $em->persist($article);
       $em->flush();
     }
