@@ -9,7 +9,7 @@ trait DateCreatedTrait
   /**
    * @ORM\Column(type="datetime", nullable=true)
    */
-  private $dateCreated = new DateTime();
+  private $dateCreated;
 
   /**
    * Get the value of dateCreated
