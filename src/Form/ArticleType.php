@@ -12,26 +12,25 @@ use Symfony\Component\OptionsResolver\OptionsResolver;
 
 class ArticleType extends AbstractType
 {
-    public function buildForm(FormBuilderInterface $builder, array $options)
-    {
-        $builder
-            ->add('title', TextType::class)
-            ->add('cover')
-            ->add('content')
-            ->add('subtitle')
-            ->add('categories', EntityType::class, [
-              'class' => Category::class,
-              'choice_label' => 'name',
-              'multiple' => true,
-              'expanded' => true
-            ])
-        ;
-    }
+  public function buildForm(FormBuilderInterface $builder, array $options)
+  {
+    $builder
+      ->add('title', TextType::class)
+      ->add('cover')
+      ->add('content')
+      ->add('subtitle')
+      ->add('categories', EntityType::class, [
+        'class' => Category::class,
+        'choice_label' => 'name',
+        'multiple' => true,
+        'expanded' => true
+      ]);
+  }
 
-    public function configureOptions(OptionsResolver $resolver)
-    {
-        $resolver->setDefaults([
-            'data_class' => Article::class,
-        ]);
-    }
+  public function configureOptions(OptionsResolver $resolver)
+  {
+    $resolver->setDefaults([
+      'data_class' => Article::class,
+    ]);
+  }
 }
