@@ -57,6 +57,7 @@
     - [Parenthèse sur la persistance : autowiring](#au-sujet-de-la-persistance-des-données)
     - [Affichage](#affichage-du-formulaire-dans-un-template-twig)
     - [Appliquer un thème](#appliquer-un-thème-au-formulaire)
+    - [Relier deux entités](#relier-deux-entités)
   - [Les messages flash](#les-messages-flash)
   - [Utilisateurs](#utilisateurs)
     - [Authentification](#authentification)
@@ -1261,6 +1262,30 @@ twig:
   # ...
   form_themes: ["bootstrap_4_layout.html.twig"]
 ```
+
+#### Relier deux entités
+
+Lors de la construction du formulaire, comment déclarer le champ qui va servir à relier une entité à une autre ?
+
+Il suffit d'utiliser le type [`EntityType`](https://symfony.com/doc/current/reference/forms/types/entity.html) :
+
+```php
+// src/Form/ArticleType.php
+$builder
+  // ...
+  ->add('categories', EntityType::class, [
+    'class' => Category::class,
+    'choice_label' => 'name',
+    'multiple' => true,
+    'expanded' => true
+  ])
+```
+
+Ici, on fait en sorte qu'un article puisse être relié à plusieurs catégories, avec les différentes options disponibles (utilisation de `multiple` et `expanded`).
+
+La documentation nous informe qu'il est également possible d'utiliser le type `EntityType` dans le cadre d'une relation `ManyToOne`.
+
+Dans tous les cas, ce qu'il faut en retenir, c'est que ce type de champ va chercher les éléments de la `class` indiquée (ici `Category::class`), et affichera sous forme de libellé le champ de la classe indiqué (ici `name`).
 
 ### Les messages flash
 
