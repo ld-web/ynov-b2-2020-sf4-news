@@ -58,6 +58,7 @@
     - [Affichage](#affichage-du-formulaire-dans-un-template-twig)
     - [Appliquer un thème](#appliquer-un-thème-au-formulaire)
     - [Relier deux entités](#relier-deux-entités)
+    - [Upload](#upload)
   - [Les messages flash](#les-messages-flash)
   - [Utilisateurs](#utilisateurs)
     - [Authentification](#authentification)
@@ -1287,6 +1288,74 @@ Ici, on fait en sorte qu'un article puisse être relié à plusieurs catégories
 La documentation nous informe qu'il est également possible d'utiliser le type `EntityType` dans le cadre d'une relation `ManyToOne`.
 
 Dans tous les cas, ce qu'il faut en retenir, c'est que ce type de champ va chercher les éléments de la `class` indiquée (ici `Category::class`), et affichera sous forme de libellé le champ de la classe indiqué (ici `name`).
+
+#### Upload
+
+Pour gérer l'upload de fichier, on peut utiliser le type [`FileType`](https://symfony.com/doc/current/reference/forms/types/file.html).
+
+```php
+// src/Form/ArticleType.php
+$builder
+  ->add('coverFile', FileType::class, [
+    'label' => "Choisissez une image",
+    'mapped' => false
+  ])
+```
+
+- Le nom utilisé, `coverFile`, n'existe pas en tant qu'attribut de l'entité `Article`
+- On indique donc l'option `mapped` à `false`
+
+Une fois le champ indiqué dans la construction du formulaire, on peut changer la gestion des données du formulaire dans le contrôleur :
+
+```php
+// src/Controller/ArticleController.php
+
+//...
+$form->handleRequest($request);
+
+if ($form->isSubmitted() && $form->isValid()) {
+  /** @var UploadedFile */
+  $file = $form->get('coverFile')->getData();
+
+  $filename = md5(uniqid()) . '.' . $file->guessExtension();
+  $file->move(
+    $this->getParameter('upload_dir'),
+    $filename
+  );
+
+  $article->setCover($filename);
+
+  $em->persist($article);
+  $em->flush();
+}
+//...
+```
+
+- On récupère les données sous forme d'une variable de type `UploadedFile` (ce type fait partie du composant `HttpFoundation` de Symfony)
+- On peut donc effectuer tout un tas d'opération avec cette variable : deviner l'extension du fichier, le bouger dans un répertoire cible, etc...
+- On peut finalement enregistrer le nom de notre fichier dans le champ initialement prévu : `cover`. Il s'agit toujours d'un champ `string` donc il peut recevoir le nom du fichier que nous avons uploadé sur le serveur
+
+##### A propos de la ligne `$this->getParameter(...)`
+
+La méthode `getParameter` est fournie par la classe `AbstractController`, et permet de récupérer un **paramètre d'application** depuis le container.
+
+Ce type de paramètre est différent des variables d'environnement, car dans ce cas, sa valeur ne va pas changer d'un environnement à l'autre (développement, staging, production).
+
+On peut définir la valeur de ce paramètre directement dans le fichier `config/services.yaml` :
+
+```yaml
+parameters:
+  upload_dir: "%kernel.project_dir%/public/uploads"
+
+services:
+  # ...
+```
+
+L'élément `%kernel.project_dir%` permet de faire référence à un autre paramètre du container, ici la racine, ou le dossier du projet. Ce paramètre sera automatiquement remplacé par le chemin du dossier du projet lors de l'utilisation de `getParameter` dans le contrôleur.
+
+> Pour voir tous les paramètres du kernel dans le container, on peut exécuter la commande suivante de la console : `php bin/console debug:container --parameters | grep kernel`
+
+Si le dossier d'upload n'existe pas, il est automatiquement créé lors de l'upload.
 
 ### Les messages flash
 
