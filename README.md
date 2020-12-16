@@ -63,6 +63,7 @@
     - [Authentification](#authentification)
     - [Contrôle d'accès](#contrôle-daccès)
   - [CRUD](#crud)
+  - [Organiser et factoriser ses entités](#organiser-et-factoriser-ses-entités)
 
 ## Composer
 
@@ -1456,3 +1457,53 @@ php bin/console make:crud
 On retrouvera la classe de contrôleur contenant toutes les méthodes nécessaires à la création, l'affichage, l'édition et la suppression d'enregistrements de cette entité, ainsi que les templates d'affichages nécessaires.
 
 Egalement, un formulaire sera créé automatiquement dans le dossier `src/Form` pour pouvoir générer les champs d'édition.
+
+### Organiser et factoriser ses entités
+
+#### Héritage
+
+Il est tout à fait possible d'utiliser l'héritage pour construire ses entités.
+
+Dans ce cas, on peut par exemple créer une classe abstraite qui contiendrait les attributs de base d'une entité (l'id par exemple).
+
+Ainsi, toute entité hériterait de cette classe abstraite, et donc des attributs de base.
+
+> Attention à bien assigner la portée `protected` aux attributs de l'entité de base
+
+Pour ça, on peut se référer à la classe abstraite [`AbstractBaseEntity`](https://github.com/ld-web/ynov-b2-2020-sf4-news/blob/master/src/Entity/AbstractBaseEntity.php).
+
+> Attention, ici on ne parle pas d'héritage Doctrine (ou SQL). On fait simplement en sorte que nos entités héritent de certains attributs, mais sans utiliser les annotations Doctrine. Pour plus d'informations sur l'héritage SQL et ses différentes stratégies, voir [ce lien](https://www.doctrine-project.org/projects/doctrine-orm/en/2.7/reference/inheritance-mapping.html)
+
+#### Composition
+
+L'héritage peut être intéressant pour factoriser certains attributs de base.
+
+Cependant, en héritant toutes nos entités de cette classe abstraite, et l'héritage multiple n'existant pas en PHP, nous fermons nos entités à l'héritage d'une autre classe.
+
+Ou bien, il faudrait inclure une autre classe entre la classe abstraite et l'entité concrète.
+
+Dans tous les cas, on peut également privilégier la **composition** à l'héritage.
+
+Dans ce cas, il s'agit de construire ses entités en ayant la possibilité de les **composer** de tels ou tels attributs.
+
+On va donc définir des bouts de classe, appelés `Traits` en PHP, que nous pourrons ensuite importer dans n'importe quelle classe, en utilisant le mot-clé `use` directement dans la définition de la classe.
+
+On veut que chaque entité ait un ID, donc on peut utiliser un [`IdTrait`](https://github.com/ld-web/ynov-b2-2020-sf4-news/blob/master/src/Entity/IdTrait.php), par exemple.
+
+Si on veut également une date de création, on peut créer un [`DateCreatedTrait`](https://github.com/ld-web/ynov-b2-2020-sf4-news/blob/master/src/Entity/DateCreatedTrait.php).
+
+Ensuite, il suffit de les `use` dans une entité :
+
+```php
+class MonEntite
+{
+  use IdTrait;
+  use DateCreatedTrait;
+
+  //...
+}
+```
+
+Il est donc possible de définir des traits, puis de **composer** ses entités de différents traits.
+
+> Le sujet de l'organisation des entités est vaste. On ne présente ici que 2 exemples possibles
